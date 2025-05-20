@@ -20,7 +20,35 @@ data class SqlString(val value: String): SqlExpression {
     override fun build(): String  = "'$value'"
 }
 
+data class SqlNumber(val value: Number): SqlExpression {
+    override fun build(): String  = value.toString()
+}
+
 infix fun String.eq(arg: String) = SqlEq(SqlCol(this), SqlString(arg))
+
+infix fun String.eq(arg: Number) = SqlEq(SqlCol(this), SqlNumber(arg))
+
+data class SqlNonEq(val left: SqlExpression, val right: SqlExpression): SqlExpression {
+    override fun build(): String = left.build() + " != " + right.build()
+}
+
+data class SqlNonNull(val left: SqlExpression): SqlExpression {
+    override fun build(): String = left.build() + " !is null"
+}
+
+infix fun String.nonEq(arg: String) = SqlNonEq(SqlCol(this), SqlString(arg))
+
+infix fun String.nonEq(arg: Number) = SqlNonEq(SqlCol(this), SqlNumber(arg))
+
+infix fun String.nonEq(arg: Nothing?) = SqlNonNull(SqlCol(this))
+
+data class SqlOr(val expressions: List<SqlExpression>): SqlExpression {
+    override fun build(): String = expressions.joinToString(" or ", prefix = "(", postfix = ")") { it.build() }
+}
+
+fun or(vararg expressions: SqlExpression) = SqlOr(expressions.asList())
+
+infix fun SqlExpression.or(right: SqlExpression) = SqlOr(listOf(this, right))
 
 class SqlSelectBuilder {
     private var table: String? = null
@@ -110,7 +138,7 @@ class SqlDslUnitTest {
      *  - for numbers - "!="
      *  - for null - "!is"
      */
-  /*  @Test
+    @Test
     fun `select with complex where condition with two conditions`() {
         val expected = "select * from table where col_a != 0"
 
@@ -137,5 +165,5 @@ class SqlDslUnitTest {
         }
 
         checkSQL(expected, real)
-    }*/
+    }
 }
